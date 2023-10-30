@@ -8,6 +8,7 @@ import { v4 as uuid } from 'uuid';
 import { 
     createNote as CreateNote
     , deleteNote as DeleteNote
+    , updateNote as UpdateNote
    } from './graphql/mutations';
 
 
@@ -53,30 +54,30 @@ const App = () => {
     };
 
 
-  const createNote = async() => {
-      const { form } = state
+    const createNote = async() => {
+        const { form } = state
 
-      if (!form.name || !form.description) {
-         return alert('please enter a name and description')
-      }
+        if (!form.name || !form.description) {
+          return alert('please enter a name and description')
+        }
 
-      const note = { ...form, clientId: CLIENT_ID, completed: false, id: uuid() }
+        const note = { ...form, clientId: CLIENT_ID, completed: false, id: uuid() }
 
-      dispatch({ type: 'ADD_NOTE', note })
-      dispatch({ type: 'RESET_FORM' })
+        dispatch({ type: 'ADD_NOTE', note })
+        dispatch({ type: 'RESET_FORM' })
 
-      try {
-        await API.graphql({
-          query: CreateNote,
-          variables: { input: note }
-        })
+        try {
+          await API.graphql({
+            query: CreateNote,
+            variables: { input: note }
+          })
 
-        console.log('successfully created note!');
+          console.log('successfully created note!');
 
-      } catch (err) {
-        console.log("error: ", err);
-      }
-  };
+        } catch (err) {
+          console.log("error: ", err);
+        }
+    };
 
     const deleteNote = async({ id }) => {
         const index = state.notes.findIndex(n => n.id === id)
@@ -94,6 +95,22 @@ const App = () => {
                 console.error(err)
         }
     };
+
+    const updateNote = async(note) => {
+        const index = state.notes.findIndex(n => n.id === note.id)
+        const notes = [...state.notes]
+        notes[index].completed = !note.completed
+        dispatch({ type: 'SET_NOTES', notes})
+        try {
+            await API.graphql({
+                query: UpdateNote,
+                variables: { input: { id: note.id, completed: notes[index].completed } }
+            })
+            console.log('note successfully updated!')
+        } catch (err) {
+            console.log('error: ', err)
+        }
+    }
 
   const onChange = (e) => {
     dispatch({ type: 'SET_INPUT', name: e.target.name, value: e.target.value });
@@ -115,7 +132,10 @@ const App = () => {
             <List.Item 
                 style={styles.item}
                 actions={[
-                    <p style={{
+                    <p style={styles.p} onClick={() => updateNote(item)}>
+                        {item.completed ? 'Completed' : 'Not Completed'}
+                    </p>  
+                    ,<p style={{
                         ...styles.p
                         , cursor: 'pointer'
                         , display: 'inline-block'
