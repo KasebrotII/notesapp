@@ -10,7 +10,9 @@ import {
     , deleteNote as DeleteNote
     , updateNote as UpdateNote
 } from './graphql/mutations';
-import { onCreateNote } from './graphql/subscriptions';
+import { onCreateNote
+        , onDeleteNote
+} from './graphql/subscriptions';
 
 
 const CLIENT_ID = uuid();
@@ -28,6 +30,8 @@ const initialState = {
             return { ...state, notes: action.notes, loading: false };
         case 'ADD_NOTE':
             return { ...state, notes: [action.note, ...state.notes]}
+        case 'DELETE_NOTE':
+            return { ...state, notes: state.notes.filter(note => note.id !== action.id)}
         case 'RESET_FORM':
             return { ...state, form: initialState.form }
         case 'SET_INPUT':
@@ -119,17 +123,33 @@ const App = () => {
 
     useEffect(() => {
       fetchNotes();
-      const subscription = API.graphql({
-          query: onCreateNote
-      })
-          .subscribe({
-              next: noteData => {
+
+    const subscription = API.graphql({
+        query: onCreateNote
+    })
+        .subscribe({
+            next: noteData => {
                 const note = noteData.value.data.onCreateNote
                 if (CLIENT_ID === note.clientId) return
-                dispatch({ type: 'ADD_NOTE', note })
-              }
-          })
-          return () => subscription.unsubscribe()
+                dispatch({ type: 'ADD_NOTE', note });
+            }
+        });
+      
+    const deleteSubscription = API.graphql({
+        query: onDeleteNote
+    })
+        .subscribe({
+            next: noteData => {
+              const noteId = noteData.value.data.onDeleteNote.id;
+              dispatch({ type: 'DELETE_NOTE', id: noteId });
+            }
+        });
+
+
+          return () =>{
+             subscription.unsubscribe();
+             deleteSubscription.unsubscribe();
+          }
     }, []);
 
     const styles = {
@@ -144,7 +164,16 @@ const App = () => {
             <List.Item 
                 style={styles.item}
                 actions={[
-                    <p style={styles.p} onClick={() => updateNote(item)}>
+                    <p style={{
+                        ...styles.p
+                        , cursor: 'pointer'
+                        , display: 'inline-block'
+                        , padding: '10px 20px'
+                        , background: item.completed ? "Green" : "Orange"
+                        , color: '#fff'
+                        , borderRadius: '5px'
+                        }}
+                        onClick={() => updateNote(item)}>
                         {item.completed ? 'Completed' : 'Not Completed'}
                     </p>  
                     ,<p style={{
